@@ -1,0 +1,22 @@
+---
+- name: Download Vector deb package
+  ansible.builtin.get_url:
+    url: https://packages.timber.io/vector/0.51.1/vector_0.51.1-1_amd64.deb
+    dest: /tmp/vector.deb
+    mode: '0644'
+
+- name: Install Vector from deb
+  ansible.builtin.apt:
+    deb: /tmp/vector.deb
+    state: present
+
+- name: Cleanup deb package
+  ansible.builtin.file:
+    path: /tmp/vector.deb
+    state: absent
+
+- name: Start and enable Vector service
+  ansible.builtin.systemd:
+    name: vector
+    state: started
+    enabled: true

@@ -1,0 +1,6 @@
+---
+skip_list:
+  - yaml[line-length]
+  - name[casing]
+  - name[template]
+

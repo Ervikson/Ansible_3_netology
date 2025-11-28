@@ -1,0 +1,76 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install Nginx and unzip
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - unzip
+    state: present
+
+- name: Create Lighthouse directory
+  ansible.builtin.file:
+    path: /var/www/lighthouse
+    state: directory
+    mode: '0755'
+
+- name: Download Lighthouse static files
+  ansible.builtin.get_url:
+    url: https://github.com/VKCOM/lighthouse/archive/refs/heads/master.zip
+    dest: /tmp/lighthouse.zip
+    mode: '0644'
+    timeout: 300
+
+- name: Remove old extracted directory if exists
+  ansible.builtin.file:
+    path: /tmp/lighthouse-master
+    state: absent
+
+- name: Extract Lighthouse archive
+  ansible.builtin.unarchive:
+    src: /tmp/lighthouse.zip
+    dest: /tmp
+    remote_src: true
+
+- name: Check if Lighthouse files already exist
+  ansible.builtin.stat:
+    path: /var/www/lighthouse/index.html
+  register: lighthouse_files
+
+- name: Copy Lighthouse files to web directory
+  ansible.builtin.copy:
+    src: /tmp/lighthouse-master/
+    dest: /var/www/lighthouse/
+    mode: '0644'
+    directory_mode: '0755'
+    remote_src: true
+  when: not lighthouse_files.stat.exists
+
+- name: Configure Nginx for Lighthouse
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/lighthouse
+    mode: '0644'
+  notify: restart nginx
+
+- name: Enable Lighthouse site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/lighthouse
+    dest: /etc/nginx/sites-enabled/lighthouse
+    state: link
+  notify: restart nginx
+
+- name: Remove default Nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: restart nginx
+
+- name: Start and enable Nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true
